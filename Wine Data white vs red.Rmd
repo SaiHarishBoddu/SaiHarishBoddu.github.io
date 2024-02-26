@@ -1,0 +1,333 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library (tidyverse)
+library (readxl)
+library (modeldata)
+library(dplyr)
+library(corrplot)
+
+
+#Importing Dataset
+wine_data<-read_xlsx("C:/Users/kld00004/Downloads/Wine Quality Dataset.xlsx")
+
+
+#Exploring Data
+str(wine_data)
+head(wine_data)
+summary(wine_data)
+
+
+
+#Setting Numeric and Factor Columns
+wine_numeric_columns <- wine_data[, sapply(wine_data, is.numeric) & names(wine_data) != "type"]
+wine_factor_columns <- sapply(wine_data$type, as.factor)
+wine_data$type <- factor(wine_data$type, levels = c('white', 'red'))
+
+
+# Setting up to filter data for red and white wines separately
+red_wine <- wine_data %>% filter(type == "red")
+white_wine <- wine_data %>% filter(type == "white")
+
+#Count in each rating
+count_red_quality <- red_wine %>% count(quality)
+count_red_quality
+
+count_white_quality <- white_wine %>% count(quality)
+count_white_quality
+
+```
+
+```{r #boxplots}
+#Checking for Outliers
+#Combined Box plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(wine_data)) {
+  boxplot(wine_data[[col]], main = col, col = "skyblue")}
+
+#Red Wine Box plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(red_wine)) {
+  boxplot(red_wine[[col]], main = col, col = "skyblue")}
+
+
+#White Wine Box plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(white_wine)) {
+  boxplot(white_wine[[col]], main = col, col = "skyblue")}
+
+```
+
+
+
+
+```{r}
+##Cleaning Data of Outliers
+# Identify and handle outliers for red wine
+filtered_red_wine <- red_wine %>%
+  select(-type)%>%
+  filter_all(all_vars(between(., quantile(., 0.25) - 1.5 * IQR(.), quantile(., 0.75) + 1.5 * IQR(.))))
+
+# Identify and handle outliers for white wine
+filtered_white_wine <- white_wine %>%
+   select(-type)%>%
+  filter_all(all_vars(between(., quantile(., 0.25) - 1.5 * IQR(.), quantile(., 0.75) + 1.5 * IQR(.))))
+
+# Combine the filtered red and white wines
+filtered_wine_data <- bind_rows(filtered_red_wine, filtered_white_wine)
+
+
+```
+
+```{r}
+# Filtered Box Plots
+
+#Combined Filtered Box Plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(filtered_wine_data)) {
+  boxplot(filtered_wine_data[[col]], main = col, col = "skyblue")
+}
+
+#Red Wine Filtered Box Plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(filtered_red_wine)) {
+  boxplot(filtered_red_wine[[col]], main = col, col = "skyblue")
+}
+
+
+#White Wine Filtered Box Plots
+par(mfrow = c(2, 7), mfcol = c(2, 7))  # 2 rows, 7 columns
+
+for (col in names(filtered_white_wine)) {
+  boxplot(filtered_white_wine[[col]], main = col, col = "skyblue")
+}
+```
+
+```{r}
+#Count in each rating - outliers removed
+count_red_filtered_qual <- filtered_red_wine %>% count(quality)
+count_red_filtered_qual
+
+
+count_white_filtered_qual <- filtered_white_wine %>% count(quality)
+count_white_filtered_qual
+
+```
+
+The majority of both types of wine fall between quality ratings 4 and 5.  with the lowest rating being 4 and highest 7. The outliers made up the entirety of the 3, 8, and 9 ratings.
+
+Perhaps should analyze the difference between the filtered vs the low and high outliers.  There appears to be something in the outliers that make the quality excellent or poor.
+
+
+
+## Analysis for the filtered data (Ratings 4-7)
+
+
+```{r}
+
+# Compute correlation matrices for red and white wines
+cor_matrix_red <- cor(filtered_red_wine[, c(1:12)])
+cor_matrix_white <- cor(filtered_white_wine[, c(1:12)])
+cor_matrix_combined <-cor(filtered_wine_data)
+
+# Cor Matrix Red
+print(cor_matrix_red)
+
+#Cor Matrix White
+print(cor_matrix_white)
+
+#Cor Matrix Combined
+print(cor_matrix_combined)
+
+# Plotting the correlation matrices side by side
+par(mfrow = c(1, 2))
+
+# Plot for red wine
+corrplot(cor_matrix_red, method = "color", title = "Correlation Plot - Red Wine", mar=c(0,0,5,0))
+
+# Plot for white wine
+corrplot(cor_matrix_white, method = "color", title = "Correlation Plot - White Wine", mar=c(0,0,5,0))
+
+# Plot for white wine
+corrplot(cor_matrix_combined, method = "color", title = "Correlation Plot - Red & White Wine", mar=c(0,0,5,0))
+
+
+```
+
+
+
+```{r #Regressions}
+
+red_model <-lm(filtered_red_wine$quality~ ., data = filtered_red_wine)
+summary(red_model)
+
+white_model <- lm(filtered_white_wine$quality ~ ., data = filtered_white_wine)
+summary(white_model)
+
+combined_model <- lm(filtered_wine_data$quality ~ ., data = filtered_wine_data)
+summary(combined_model)
+
+
+```
+
+
+```{r #Stepped Regressions}
+
+step(red_model)
+
+step(white_model)
+
+step(combined_model)
+
+
+
+```
+
+
+## Anaylsis for Ratings Bands
+
+```{r}
+#Filtering for 1-3 Ratings
+
+low_rating <- wine_data %>% filter(quality >= 1 & quality <= 3)
+low_rating_red <- red_wine %>% filter(quality >= 1 & quality <= 3)
+low_rating_white <- white_wine %>% filter(quality >= 1 & quality <= 3)
+
+high_rating <- wine_data %>% filter(quality >= 8 & quality <= 10)
+high_rating_red <- red_wine %>% filter(quality >= 8 & quality <= 10)
+high_rating_white <- white_wine %>% filter(quality >= 8 & quality <= 10)
+
+middle_rating <- filtered_wine_data
+middle_rating_red <- filtered_red_wine
+middle_rating_white <- filtered_white_wine
+
+
+head(low_rating)
+
+#Comparision combined ratings for red and white
+
+combined_rating_bands <- bind_rows(
+  data.frame(type = "low", low_rating),
+  data.frame(type = "middle", middle_rating),
+  data.frame(type = "high", high_rating)
+)
+
+# Arrange the data by type
+combined_rating_bands <- combined_rating_bands %>% arrange(type)
+
+# Calculate means for each variable by type
+means_by_type <- combined_rating_bands %>%
+  group_by(type) %>%
+  summarise_all(mean)%>%
+  arrange(factor(type, levels = c("low", "middle", "high")))
+
+
+# Print the means by type
+print(means_by_type)
+
+
+
+#Comparison combined ratings for red
+
+combined_rating_bands_red <- bind_rows(
+  data.frame(type = "low", low_rating_red),
+  data.frame(type = "middle", middle_rating_red),
+  data.frame(type = "high", high_rating_red)
+)
+
+# Arrange the data by type
+combined_rating_bands_red <- combined_rating_bands_red %>% arrange(type)
+
+# Calculate means for each variable by type
+means_by_type_red <- combined_rating_bands_red %>%
+  group_by(type) %>%
+  summarise_all(mean)%>%
+  arrange(factor(type, levels = c("low", "middle", "high")))
+
+
+# Print the means by Red type
+print(means_by_type_red)
+
+
+
+#Comparison combined ratings for white
+
+combined_rating_bands_white <- bind_rows(
+  data.frame(type = "low", low_rating_white),
+  data.frame(type = "middle", middle_rating_white),
+  data.frame(type = "high", high_rating_white)
+)
+
+# Arrange the data by type
+combined_rating_bands_white <- combined_rating_bands_white %>% arrange(type)
+
+# Calculate means for each variable by type
+means_by_type_white <- combined_rating_bands_white %>%
+  group_by(type) %>%
+  summarise_all(mean)%>%
+  arrange(factor(type, levels = c("low", "middle", "high")))
+
+
+# Print the means by White type
+print(means_by_type_white)
+
+```
+
+#Research Questions:
+What are the factors that influence the quality rating for wine?  Is there a difference between red and white wine factors?
+
+Furthermore, it appears that the outliers all fall within the 3, 8 and 9 ratings.  What is the difference between those wines, that contributes their place at the top or bottom of the ratings?
+
+
+#Step Plots – Significant Variables:
+Combined – Fixed acidity, volatile acidity, citric acid, residual sugar, free sulfur dioxide, total sulfur dioxide, density, pH, sulphates, & alcohol.
+
+Red – volatile acidity, citric acid, free sulfur dioxide, total sulfur dioxide, pH, sulphates, & alcohol
+
+White – Fixed acidity, volatile acidity, residual sugar, chlorides, free sulfur dioxide, density, pH, sulphates, & alcohol.
+
+
+#Breakdown by variable
+
+Alcohol:
+Alcohol has a positive correlation with the quality rating for both red and white wines.
+
+Sulphates:
+When looking at reds and whites together, sulphates do not seem to influence the quality rating.  However, when reds and whites are analyzed separately, it appears that red wines that have a higher sulphate content also have a higher quality rating.
+
+pH: 
+pH levels do not have much of effect on quality level.
+
+Density:
+The actual difference between values is negligible, however, it appears that as density decreases, the quality rating increases.
+
+Total Sulfur Dioxide and Free Sulfur Dioxide:
+For whites, the higher the total sulfur dioxide, the lowered the quality rating.  
+
+Chlorides:
+With both, the higher the chlorides, the lower the quality rating.
+
+Residual Sugar:
+Residual sugar seems to make a difference with white wines.  The lower the residual sugar, the higher the quality rating.
+
+Citric Acid:
+When looking at both together, it seems citric acid has an effect on the quality rating, however, when separating them out, it seems to have a larger effect on reds.   The higher the citric acid the higher the quality rating.
+
+Volatile Acidity 
+When looking at both, it appears that the higher the volatile acidity, the lower the quality rating.  When separating them out, that is true for the reds, but not much of an effect on whites.
+
+Fixed Acidity:
+When looking at both, it appears that the higher the volatile acidity, the lower the quality rating. When separating them out, that is true for the whites, but does not seem to make a difference for the reds.
+
+#Simplified Conclusion
+The factors that influence the quality ratings vary between red and white wine.  Both types share volatile acidity, free sulfur dioxide, pH, sulphates, & alcohol, with alcohol having the strongest positive correlation for both.  However, each type has additional factors that do not influence the other.  For red, it's citric acid, and total sulfur dioxide.  For white, it's residual sugar, chlorides, and density.
+
+
