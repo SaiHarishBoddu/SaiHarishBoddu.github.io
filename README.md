@@ -6,3 +6,4 @@
 ## CT Upass : Database management and process modelling using SQL, Tableau and Visio
 ## Edulink : Project Risk management and Agile methodologies using Jira
 ## Linear regression modelling for a real estate sales dataset
+## Project leadership and development program (PLDP) case study 
