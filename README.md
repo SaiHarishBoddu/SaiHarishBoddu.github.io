@@ -1,6 +1,6 @@
-# SaiHarishBoddu.github.io
+### SaiHarishBoddu.github.io
 
-## Projects
+## Projects :
 ## Forecasting weather from Houston, Texas - Data mining and Business Intelligence using SAS
 ## Wine Analysis : Statistics and Business Analytics using R
 ## CT Upass : Database management and process modelling using SQL, Tableau and Visio
